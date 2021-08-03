@@ -22,9 +22,13 @@ module Offering {
         // stc总质押量，解押后不变，用于计算代币分配
         stc_staking_amount: u128,
         // 已发放代币总量
-        
-        // create_event 
-        // state_update_event
+        token_offering_amount: u128,
+        // the counter.
+        counter: u128,
+        // create event.
+        offering_created_event: Event::new_event_handle<OfferingCreatedEvent>(signer),
+        // state update event.
+        offering_state_update_event: Event::new_event_handle<OfferingStateUpdateEvent>(signer),
     }
 
     // 用户质押
@@ -33,20 +37,45 @@ module Offering {
         stc_staking: Token::Token<STC::STC>,
         // 用户总质押stc，解押后不变，用于计算用户兑换代币数
         stc_staking_amount: u128
-        // staking_event
-
-        // exchange_event
+        // the counter.
+        counter: u128,
+        // staking_event.
+        stc_staking_event: Event::new_event_handle<StcStakingEvent>(signer),
+        // exchange_event.
+        token_exchange_event: Event::new_event_handle<TokenExchangeEvent>(signer),
     }
 
-    // event
-    // counter
-    // 创建项目 基本信息
-    // 状态变更
+    // emitted when offering created.
+    struct OfferingCreatedEvent has drop, store {
+        // token for offering.
+        token_amount: u128,
+        // usdt exchange rate.
+        usdt_rate: u128,
+    }
 
+    // emitted when offering update state.
+    struct OfferingStateUpdateEvent has drop, store {
+        // the counter.
+        counter: u128,
+        // offering state.
+        state: u8,
+    }
 
-    // 质押、解押
-    // 支付
+    // emitted when staking or unstaking.
+    struct StcStakingEvent has drop, store {
+        // the counter.
+        counter: u128,
+        // stc staking amount.
+        stc_staking_amount: u128,
+    }
 
+    // emitted when exchange token.
+    struct TokenExchangeEvent has drop, store {
+        // the counter.
+        counter: u128,
+        // token exchange amount.
+        token_exchange_amount: u128,
+    }
 
     // 质押
     // Offering::state == OPENING
