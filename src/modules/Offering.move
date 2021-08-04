@@ -1,4 +1,4 @@
-address 0x111111111 {
+address {{address}} {
 module Offering {
     use 0x1::STC::STC;
     use 0x1::Event;
@@ -207,7 +207,7 @@ module Offering {
         let staking_token = borrow_global_mut<Staking<TokenType>>(user_address);
         assert(staking_token, invalid_argument(STAKING_NOT_FOUND));
 
-        let pool = borrow_global<Offering<TokenType>>(0x111111111);
+        let pool = borrow_global<Offering<TokenType>>({{address}});
         assert(pool.state == OFFERING_UNSTAKING, Errors::invalid_state(UNSUPPORT_OPERATION_BY_STATE));
 
         // 分发代币数量
@@ -220,7 +220,7 @@ module Offering {
         assert(usdt_balance >= need_pay_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // 扣用户usdt转给合约
         let usdt_tokens = Account::withdraw<TokenType::USDT>(account, need_pay_amount);
-        Account::deposit(0x111111111, usdt_tokens);
+        Account::deposit({{address}}, usdt_tokens);
 
         // 扣合约分发币转给用户
         let claimed_tokens = Token::withdraw(&mut pool.tokens, obtained_tokens);
@@ -259,7 +259,7 @@ module Offering {
     // 初始化Offering，balance.<token> -> Offering::tokens<token>
     public fun create<TokenType: store>(account: &signer, token_amount: u128, usdt_rate: u128, offering_addr: address) {
         let owner_address = Signer::address_of(account);
-        assert(owner_address == 0x111111111, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
+        assert(owner_address == {{address}}, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
         let token_balance = Account::balance<TokenType>(owner_address);
         assert(token_balance >= token_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         let tokens = Account::withdraw<TokenType>(account, token_amount);
@@ -296,7 +296,7 @@ module Offering {
     // 解押中(可减可兑换)、已结束(可解押) 可逆
     public fun state_change<TokenType: store>(account: &signer, state: u8) acquires Offering<TokenType> {
         let owner_address = Signer::address_of(account);
-        assert(owner_address == 0x111111111, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
+        assert(owner_address == {{address}}, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
         assert(state > OFFERING_PENDING && state < OFFERING_CLOSED, Errors::invalid_state(UNSUPPORT_STATE))
         let pool = borrow_global_mut<Offering<TokenType>>(owner_address);
         assert(pool, Errors::invalid_argument(OFFERING_PROJECT_NOT_EXISTS));
