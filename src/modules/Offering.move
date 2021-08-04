@@ -6,7 +6,7 @@ module Offering {
 
     use 0x1::Account;
     use 0x1::Signer;
-    use 0x1::Token::{Token, Self};
+    use 0x1::Token;
     
     // waiting for open, forbid any operation
     const OFFERING_PENDING: u8 = 1;
@@ -48,9 +48,9 @@ module Offering {
         // the version, plus one after updating
         version: u128,
         // create event
-        offering_created_event: Event::new_event_handle<OfferingCreatedEvent>,
+        offering_created_event: Event::EventHandle<OfferingCreatedEvent>,
         // update event
-        offering_update_event: Event::new_event_handle<OfferingStateUpdateEvent>,
+        offering_update_event: Event::EventHandle<OfferingUpdateEvent>,
     }
 
     // personal staking
@@ -63,9 +63,9 @@ module Offering {
         // the version, plus one after updating
         version: u128,
         // staking_event
-        token_staking_event: Event::new_event_handle<TokenStakingEvent>,
+        token_staking_event: Event::EventHandle<TokenStakingEvent>,
         // exchange_event
-        token_exchange_event: Event::new_event_handle<TokenExchangeEvent>,
+        token_exchange_event: Event::EventHandle<TokenExchangeEvent>,
     }
 
     // emitted when offering created.
@@ -104,7 +104,7 @@ module Offering {
         token_exchange_amount: u128,
     }
 
-    public fun emit_offering_update_event(offering: &mut Offering<TokenType>) {
+    public fun emit_offering_update_event<TokenType: store>(offering: &mut Offering<TokenType>) {
         Event::emit_event(
             offering.offering_update_event,
             OfferingUpdateEvent {
@@ -143,6 +143,8 @@ module Offering {
                 stc_staking: stc_staking,
                 stc_staking_amount: stc_amount,
                 version: 1u128,
+                token_staking_event: Event::new_event_handle<TokenStakingEvent>(signer),
+                token_exchange_event: Event::new_event_handle<TokenExchangeEvent>(signer),
             };
             move_to(account, staking);
         };
@@ -157,7 +159,7 @@ module Offering {
                 stc_staking_amount: offering.stc_staking_amount,
             },
         );
-        emit_offering_update_event(offering);
+        emit_offering_update_event<TokenType>(offering);
     }
 
     // unstaking
@@ -190,7 +192,7 @@ module Offering {
                 stc_staking_amount: offering.stc_staking_amount,
             },
         );
-        emit_offering_update_event(offering);
+        emit_offering_update_event<TokenType>(offering);
     }
 
     // exchange token
@@ -282,7 +284,7 @@ module Offering {
             return pool
         };
         pool.version = pool.version + 1;
-        emit_offering_update_event(&mut pool);
+        emit_offering_update_event<TokenType>(&mut pool);
         pool
     }
 
