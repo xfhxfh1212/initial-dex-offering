@@ -8,8 +8,12 @@ module Offering {
     use 0x1::Account;
     use 0x1::Signer;
     use 0x1::Token;
+<<<<<<< HEAD
 
     const OWNER_ADDRESS : address = 0xeE337598EAEd6b2317C863aAf3870948;
+=======
+    use 0x1::Errors;
+>>>>>>> a94f56e (fix compile error)
     
     // waiting for open, forbid any operation
     const OFFERING_PENDING: u8 = 1;
@@ -109,8 +113,8 @@ module Offering {
 
     public fun emit_offering_update_event<TokenType: store>(offering: &mut Offering<TokenType>) acquires Offering {
         Event::emit_event(
-            offering.offering_update_event,
-            OfferingUpdateEvent {
+            &mut offering.offering_update_event,
+            OfferingUpdateEvent { 
                 version: offering.version,
                 state: offering.state,
                 stc_staking_amount: offering.stc_staking_amount,
@@ -121,8 +125,13 @@ module Offering {
 
     // staking
     // stake STC for exchange token.
+<<<<<<< HEAD
     public(script) fun staking<TokenType: store>(account: &signer, stc_amount: u128) {
         let offering = borrow_global_mut<Offering<TokenType>>(OWNER_ADDRESS);
+=======
+    public fun staking<TokenType: store>(account: &signer, stc_amount: u128) acquires Offering, Staking {
+        let offering = borrow_global_mut<Offering<TokenType>>(@0xeE337598EAEd6b2317C863aAf3870948);
+>>>>>>> a94f56e (fix compile error)
         // check state
         assert(offering.state == OFFERING_OPENING, Errors::invalid_state(STATE_ERROR));
         // check balance
@@ -130,15 +139,15 @@ module Offering {
         let stc_balance = Account::balance<STC>(signer_addr);
         assert(stc_balance > stc_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // move stc from balance to staking
-        let stc_staking = Account::withdraw<STC>(account, token_amount);
+        let stc_staking = Account::withdraw<STC>(account, stc_amount);
         // check resource exist
         let staking;
-        if (exist<Staking>(signer_addr)) {
+        if (exists<Staking>(signer_addr)) {
             // deposit stc to staking
             staking = borrow_global_mut<Staking>(signer_addr);
             Token::deposit(&mut staking.stc_staking, stc_staking);
             // add personal stc staking amount
-            staking.stc_staking_amount = staking.stc_staking_amount + token_amount;
+            staking.stc_staking_amount = staking.stc_staking_amount + stc_amount;
             // version + 1
             staking.version = staking.version + 1;
         } else {
@@ -152,7 +161,7 @@ module Offering {
             move_to(account, staking);
         };
         // add total stc staking amount
-        offering.stc_staking_amount = offering.stc_staking_amount + token_amount;
+        offering.stc_staking_amount = offering.stc_staking_amount + stc_amount;
         offering.version = offering.version + 1;
         // emit staking event
         Event::emit_event(
@@ -167,13 +176,18 @@ module Offering {
 
     // unstaking
     // subtract amount of staking STC.
+<<<<<<< HEAD
     public(script) fun unstaking<TokenType: store>(account: &signer, stc_amount: u128) {
         let offering = borrow_global_mut<Offering<TokenType>>(OWNER_ADDRESS); 
+=======
+    public fun unstaking<TokenType: store>(account: &signer, stc_amount: u128) acquires Offering, Staking  {
+        let offering = borrow_global_mut<Offering<TokenType>>(@0xeE337598EAEd6b2317C863aAf3870948); 
+>>>>>>> a94f56e (fix compile error)
         // check state
         assert(offering.state != OFFERING_PENDING, Errors::invalid_state(STATE_ERROR));
         // check staking amount
         let signer_addr = Signer::address_of(account);
-        assert(exist<Staking>(signer_addr), Errors::invalid_state(STAKING_NOT_EXISTS));
+        assert(exists<Staking>(signer_addr), Errors::invalid_state(STAKING_NOT_EXISTS));
         let staking = borrow_global_mut<Staking>(signer_addr);
         assert(staking >= stc_amount, Errors::invalid_state(INSUFFICIENT_STAKING));
         // move stc from staking to balance
@@ -184,17 +198,29 @@ module Offering {
             staking.stc_staking_amount = staking.stc_staking_amount - stc_amount;
             offering.stc_staking_amount = offering.stc_staking_amount - stc_amount;
         };
+        // destory 
+        if (staking.tokens.value == 0u128) {
+            // destory resource
+            let Staking<TokenType> {
+                stc_staking: _,
+                stc_staking_amount: _,
+                version: _,
+                stc_staking_event: _,
+                token_exchange_event: _,
+            } = staking;
+        } else {
+            staking.version = staking.version + 1;
+            // emit unstaking event
+            Event::emit_event(
+                &mut staking.stc_staking_event,
+                StcStakingEvent {
+                    version: staking.version,
+                    stc_staking_amount: offering.stc_staking_amount,
+                },
+            );
+        };
         // version + 1
-        staking.version = staking.version + 1;
         offering.version = offering.version + 1;
-        // emit unstaking event
-        Event::emit_event(
-            &mut staking.stc_staking_event,
-            StcStakingEvent {
-                version: staking.version,
-                stc_staking_amount: offering.stc_staking_amount,
-            },
-        );
         emit_offering_update_event<TokenType>(offering);
     }
 
