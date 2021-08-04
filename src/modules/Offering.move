@@ -226,12 +226,13 @@ module Offering {
         let claimed_tokens = Token::withdraw(&mut pool.tokens, obtained_tokens);
         Account::deposit_to_self(account, claimed_tokens);
         pool.token_offering_amount = pool.token_offering_amount + claimed_tokens;
+        emit_offering_update_event(&mut pool);
 
         // 解押所有stc转给用户
         let staking_tokens = Token::withdraw(&mut staking_token.stc_staking, Token::value<TokenType>(&staking_token.stc_staking));
         Account::deposit_to_self(account, staking_tokens);
 
-        Event::emit_event<TokenExchangeEvent>(&mut account.offering_created_event, TokenExchangeEvent {
+        Event::emit_event<TokenExchangeEvent>(&mut account.token_exchange_event, TokenExchangeEvent {
             // the version.
             version: staking_token.version,
             // token exchange amount.
@@ -303,12 +304,7 @@ module Offering {
             return
         }
         pool.version = pool.version + 1;
-        Event::emit_event<OfferingStateUpdateEvent>(&mut account.offering_created_event, OfferingStateUpdateEvent {
-            // the version.
-            version: pool.version,
-            // offering state.
-            state: pool.state,
-        });
+        emit_offering_update_event(&mut pool);
         
     }
     }
