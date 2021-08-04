@@ -142,15 +142,25 @@ module Offering {
         let staking_tokens = Token::withdraw(&mut staking_token.stc_staking, Token::value<TokenType>(&staking_token.stc_staking));
         Account::deposit_to_self(account, staking_tokens);
 
+        Event::emit_event<TokenExchangeEvent>(&mut account.offering_created_event, TokenExchangeEvent {
+            // the counter.
+            counter: staking_token.counter,
+            // token exchange amount.
+            token_exchange_amount: obtained_tokens
+        });
+
         // 销毁resource
         let Staking<TokenType> {
             /// 当前质押stc
             stc_staking: _,
             // 用户总质押stc，解押后不变，用于计算用户兑换代币数
             stc_staking_amount: _
-            // staking_event
-
-            // exchange_event
+            // the counter.
+            counter: _,
+            // staking_event.
+            stc_staking_event: _,
+            // exchange_event.
+            token_exchange_event: _
         } = staking_token
     }
 
@@ -176,10 +186,19 @@ module Offering {
             stc_staking_amount: 0,
             // 已发放代币总量
             token_offering_amount: 0,
-            token_total_amount: token_amount
+            token_total_amount: token_amount,
+            counter: 0,
             // create_event 
+            offering_created_event: Event::new_event_handle<OfferingCreatedEvent>(account),
             // state_update_event
+            offering_state_update_event:  Event::new_event_handle<OfferingStateUpdateEvent>(account)
         })
+        Event::emit_event<OfferingCreatedEvent>(&mut account.offering_created_event, OfferingCreatedEvent {
+            // token for offering.
+            token_amount,
+            // usdt exchange rate.
+            usdt_rate
+        });
     }
 
     // 项目状态修改
@@ -191,18 +210,18 @@ module Offering {
         assert(state > OFFERING_PENDING && state < OFFERING_CLOSED, Errors::invalid_state(UNSUPPORT_STATE))
         let pool = borrow_global_mut<Offering<TokenType>>(owner_address);
         assert(pool, Errors::invalid_argument(OFFERING_PROJECT_NOT_EXISTS));
-        if (state > pool.state) {
-            pool.state = state
-            return
-        } 
-        if (state > OFFERING_STAKING) {
-            pool.state = state
+        if (pool.state > OFFERING_STAKING && state < OFFERING_UNSTAKING) {
             return
         }
-        if (pool.state < OFFERING_UNSTAKING) {
-            pool.state = state
-            return
-        }
+        pool.counter = pool.counter + 1;
+        Event::emit_event<OfferingStateUpdateEvent>(&mut account.offering_created_event, OfferingStateUpdateEvent {
+            // the counter.
+            counter: pool.counter,
+            // offering state.
+            state: pool.state,
+        });
+        
+    }
     }
 
 }
