@@ -1,4 +1,4 @@
-address {{address}} {
+address 0xeE337598EAEd6b2317C863aAf3870948 {
 module Offering {
     use 0x1::STC::STC;
     use 0x1::USDT::USDT;
@@ -29,7 +29,7 @@ module Offering {
     const CAN_NOT_CHANGE_BY_CURRENT_USER : u64 = 100007;
 
     // IDO token pool
-    struct Offering<TokenType: store> has key store {
+    struct Offering<TokenType: store> has key, store {
         // tokens for IDO
         tokens: Token::Token<TokenType>,
         // total token amount for IDO, never changed
@@ -48,24 +48,24 @@ module Offering {
         // the version, plus one after updating
         version: u128,
         // create event
-        offering_created_event: Event::new_event_handle<OfferingCreatedEvent>(signer),
+        offering_created_event: Event::new_event_handle<OfferingCreatedEvent>,
         // update event
-        offering_update_event: Event::new_event_handle<OfferingStateUpdateEvent>(signer)
+        offering_update_event: Event::new_event_handle<OfferingStateUpdateEvent>,
     }
 
     // personal staking
-    struct Staking<TokenType: store> has key store {
+    struct Staking<TokenType: store> has key, store {
         // current staking stc
         stc_staking: Token::Token<STC>,
         // personal stc staking total amount, never changed after OFFERING_UNSTAKING
         // used for calculating the personal percentage of tokens
-        stc_staking_amount: u128
+        stc_staking_amount: u128,
         // the version, plus one after updating
         version: u128,
         // staking_event
-        token_staking_event: Event::new_event_handle<TokenStakingEvent>(signer),
+        token_staking_event: Event::new_event_handle<TokenStakingEvent>,
         // exchange_event
-        token_exchange_event: Event::new_event_handle<TokenExchangeEvent>(signer),
+        token_exchange_event: Event::new_event_handle<TokenExchangeEvent>,
     }
 
     // emitted when offering created.
@@ -104,9 +104,9 @@ module Offering {
         token_exchange_amount: u128,
     }
 
-    public fun emit_offering_update_event(&mut offering: Offering<TokenType>) {
+    public fun emit_offering_update_event(offering: &mut Offering<TokenType>) {
         Event::emit_event(
-            &mut offering.offering_update_event,
+            offering.offering_update_event,
             OfferingUpdateEvent {
                 version: offering.version,
                 state: offering.state,
@@ -119,13 +119,13 @@ module Offering {
     // staking
     // stake STC for exchange token.
     public(script) fun staking<TokenType: store>(account: &signer, stc_amount: u128) {
-        let offering = borrow_global<Offering<TokenType>>({{address}});
+        let offering = borrow_global_mut<Offering<TokenType>>(0xeE337598EAEd6b2317C863aAf3870948);
         // check state
         assert(offering.state == OFFERING_OPENING, Errors::invalid_state(STATE_ERROR));
         // check balance
-        let signer_addr = Signer.address_of(account);
+        let signer_addr = Signer::address_of(account);
         let stc_balance = Account::balance<STC>(signer_addr);
-        assert(stc_balance > stc_amount, Errors.invalid_argument(INSUFFICIENT_BALANCE));
+        assert(stc_balance > stc_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // move stc from balance to staking
         let stc_staking = Account::withdraw<STC>(account, token_amount);
         // check resource exist
@@ -145,9 +145,8 @@ module Offering {
                 version: 1u128,
             };
             move_to(account, staking);
-        }
+        };
         // add total stc staking amount
-        let offering = borrow_global_mut<Offering>({{address}});
         offering.stc_staking_amount = offering.stc_staking_amount + token_amount;
         offering.version = offering.version + 1;
         // emit staking event
@@ -164,11 +163,11 @@ module Offering {
     // unstaking
     // subtract amount of staking STC.
     public(script) fun unstaking<TokenType: store>(account: &signer, stc_amount: u128) {
-        let offering = borrow_global_mut<Offering<TokenType>>({{address}}); 
+        let offering = borrow_global_mut<Offering<TokenType>>(0xeE337598EAEd6b2317C863aAf3870948); 
         // check state
         assert(offering.state != OFFERING_PENDING, Errors::invalid_state(STATE_ERROR));
         // check staking amount
-        let signer_addr = Signer.address_of(account);
+        let signer_addr = Signer::address_of(account);
         assert(exist<Staking>(signer_addr), Errors::invalid_state(STAKING_NOT_EXISTS));
         let staking = borrow_global_mut<Staking>(signer_addr);
         assert(staking >= stc_amount, Errors::invalid_state(INSUFFICIENT_STAKING));
@@ -179,7 +178,7 @@ module Offering {
         if (offering.state == OFFERING_OPENING || offering.state == OFFERING_STAKING) {
             staking.stc_staking_amount = staking.stc_staking_amount - stc_amount;
             offering.stc_staking_amount = offering.stc_staking_amount - stc_amount;
-        }
+        };
         // version + 1
         staking.version = staking.version + 1;
         offering.version = offering.version + 1;
@@ -201,7 +200,7 @@ module Offering {
         let staking_token = borrow_global_mut<Staking<TokenType>>(user_address);
         assert(staking_token, invalid_argument(STAKING_NOT_EXISTS));
 
-        let pool = borrow_global<Offering<TokenType>>({{address}});
+        let pool = borrow_global<Offering<TokenType>>(0xeE337598EAEd6b2317C863aAf3870948);
         assert(pool.state == OFFERING_UNSTAKING, Errors::invalid_state(STATE_ERROR));
 
         // obtained token
@@ -214,7 +213,7 @@ module Offering {
         assert(usdt_balance >= need_pay_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // pay USDT for token
         let usdt_tokens = Account::withdraw<USDT>(account, need_pay_amount);
-        Account::deposit({{address}}, usdt_tokens);
+        Account::deposit(0xeE337598EAEd6b2317C863aAf3870948, usdt_tokens);
 
         // claim tokens for user
         let claimed_tokens = Token::withdraw(&mut pool.tokens, obtained_tokens);
@@ -236,17 +235,17 @@ module Offering {
         // destory resource
         let Staking<TokenType> {
             stc_staking: _,
-            stc_staking_amount: _
+            stc_staking_amount: _,
             version: _,
             stc_staking_event: _,
-            token_exchange_event: _
-        } = staking_token
+            token_exchange_event: _,
+        } = staking_token;
     }
 
     // create IDO project
     public fun create<TokenType: store>(account: &signer, token_amount: u128, usdt_rate: u128, offering_addr: address) {
         let owner_address = Signer::address_of(account);
-        assert(owner_address == {{address}}, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
+        assert(owner_address == 0xeE337598EAEd6b2317C863aAf3870948, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
         let token_balance = Account::balance<TokenType>(owner_address);
         assert(token_balance >= token_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         let tokens = Account::withdraw<TokenType>(account, token_amount);
@@ -261,30 +260,30 @@ module Offering {
             version: 0,
             offering_created_event: Event::new_event_handle<OfferingCreatedEvent>(account),
             offering_update_event:  Event::new_event_handle<OfferingStateUpdateEvent>(account)
-        })
+        });
         Event::emit_event<OfferingCreatedEvent>(&mut account.offering_created_event, OfferingCreatedEvent {
             // token for offering.
             token_amount,
             // usdt exchange rate.
-            usdt_rate
+            usdt_rate,
         });
     }
 
     // update state
     // PENDING/OPENING/STAKING reversible
     // UNSTAKING/CLOSED reversible
-    public fun state_change<TokenType: store>(account: &signer, state: u8) acquires Offering<TokenType> {
+    public fun state_change<TokenType: store>(account: &signer, state: u8) acquires Offering {
         let owner_address = Signer::address_of(account);
-        assert(owner_address == {{address}}, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
-        assert(state > OFFERING_PENDING && state < OFFERING_CLOSED, Errors::invalid_state(UNSUPPORT_STATE))
+        assert(owner_address == 0xeE337598EAEd6b2317C863aAf3870948, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
+        assert(state > OFFERING_PENDING && state < OFFERING_CLOSED, Errors::invalid_state(UNSUPPORT_STATE));
         let pool = borrow_global_mut<Offering<TokenType>>(owner_address);
         assert(pool, Errors::invalid_argument(OFFERING_NOT_EXISTS));
         if (pool.state > OFFERING_STAKING && state < OFFERING_UNSTAKING) {
-            return
-        }
+            return pool
+        };
         pool.version = pool.version + 1;
         emit_offering_update_event(&mut pool);
-        
+        pool
     }
 
 }
