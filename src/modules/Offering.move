@@ -1,6 +1,7 @@
 address {{address}} {
 module Offering {
     use 0x1::STC::STC;
+    use 0x1::USDT::USDT;
     use 0x1::Event;
 
     use 0x1::Account;
@@ -216,10 +217,10 @@ module Offering {
         assert(amount >= obtained_tokens, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // 需支付金额
         let need_pay_amount = pool.usdt_rate * obtained_tokens;
-        let usdt_balance = Account::balance<TokenType::USDT>(user_address);
+        let usdt_balance = Account::balance<USDT>(user_address);
         assert(usdt_balance >= need_pay_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // 扣用户usdt转给合约
-        let usdt_tokens = Account::withdraw<TokenType::USDT>(account, need_pay_amount);
+        let usdt_tokens = Account::withdraw<USDT>(account, need_pay_amount);
         Account::deposit({{address}}, usdt_tokens);
 
         // 扣合约分发币转给用户
@@ -229,7 +230,7 @@ module Offering {
         emit_offering_update_event(&mut pool);
 
         // 解押所有stc转给用户
-        let staking_tokens = Token::withdraw(&mut staking_token.stc_staking, Token::value<TokenType>(&staking_token.stc_staking));
+        let staking_tokens = Token::withdraw(&mut staking_token.stc_staking, Token::value<STC>(&staking_token.stc_staking));
         Account::deposit_to_self(account, staking_tokens);
 
         Event::emit_event<TokenExchangeEvent>(&mut account.token_exchange_event, TokenExchangeEvent {
