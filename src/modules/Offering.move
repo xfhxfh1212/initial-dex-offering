@@ -1,7 +1,6 @@
-address 0xeE337598EAEd6b2317C863aAf3870948 {
+address 0x100 {
 module Offering {
     use 0x1::STC::STC;
-    use 0x1::USDT::USDT;
     use 0x1::Event;
     use 0x1::Errors;
 
@@ -9,7 +8,10 @@ module Offering {
     use 0x1::Signer;
     use 0x1::Token;
 
-    const OWNER_ADDRESS: address = @0xeE337598EAEd6b2317C863aAf3870948;
+    // todo: address need replace
+    use 0x110::DummyToken::USDT;
+    // todo: address need replace
+    const OWNER_ADDRESS: address = @0x100;
     // waiting for open, forbid any operation
     const OFFERING_PENDING: u8 = 1;
     // opening for staking or unstaking
