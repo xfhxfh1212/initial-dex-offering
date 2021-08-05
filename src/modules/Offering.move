@@ -235,12 +235,13 @@ module Offering {
 
         // claim tokens for user
         let claimed_tokens = Token::withdraw(&mut pool.tokens, obtained_tokens);
-        Account::deposit_to_self(account, claimed_tokens);
         pool.token_offering_amount = pool.token_offering_amount + Token::value<TokenType>(&claimed_tokens);
+        Account::deposit_to_self(account, claimed_tokens);
         emit_offering_update_event(pool);
 
         // unstaking STC
-        let staking_tokens = Token::withdraw(&mut staking_token.stc_staking, Token::value<STC>(&staking_token.stc_staking));
+        let unstaking_amount = Token::value<STC>(&staking_token.stc_staking);
+        let staking_tokens = Token::withdraw(&mut staking_token.stc_staking,  unstaking_amount);
         Account::deposit_to_self(account, staking_tokens);
 
         Event::emit_event<TokenExchangeEvent>(&mut staking_token.token_exchange_event, TokenExchangeEvent {
@@ -268,6 +269,12 @@ module Offering {
         assert(token_balance >= token_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         let tokens = Account::withdraw<TokenType>(account, token_amount);
         let offering_create_event_handler = Event::new_event_handle<OfferingCreatedEvent>(account);
+        Event::emit_event<OfferingCreatedEvent>(&mut offering_create_event_handler, OfferingCreatedEvent {
+            // token for offering.
+            token_amount,
+            // usdt exchange rate.
+            usdt_rate,
+        });
         move_to<Offering<TokenType>>(account, Offering<TokenType> {
             tokens: tokens,
             usdt_rate: usdt_rate,
@@ -279,12 +286,6 @@ module Offering {
             version: 0,
             offering_created_event: offering_create_event_handler,
             offering_update_event: Event::new_event_handle<OfferingUpdateEvent>(account) 
-        });
-        Event::emit_event<OfferingCreatedEvent>(&mut offering_create_event_handler, OfferingCreatedEvent {
-            // token for offering.
-            token_amount,
-            // usdt exchange rate.
-            usdt_rate,
         });
     }
 
@@ -299,7 +300,7 @@ module Offering {
         let pool = borrow_global_mut<Offering<TokenType>>(owner_address);
         
         if (pool.state > OFFERING_STAKING && state < OFFERING_UNSTAKING) {
-            return ;
+            ()
         };
         pool.version = pool.version + 1;
         emit_offering_update_event<TokenType>(pool);
