@@ -51,7 +51,7 @@ module Offering {
         token_offering_amount: u128,
         // the version, plus one after updating
         version: u128,
-        // create event
+        // create eventt
         offering_created_event: Event::EventHandle<OfferingCreatedEvent>,
         // update event
         offering_update_event: Event::EventHandle<OfferingUpdateEvent>,
