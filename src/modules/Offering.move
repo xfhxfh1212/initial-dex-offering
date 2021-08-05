@@ -141,15 +141,14 @@ module Offering {
             // version + 1
             staking.version = staking.version + 1;
         } else {
-            let staking_obj = Staking<TokenType> {
+            move_to<Staking<TokenType>>(account, Staking<TokenType> {
                 stc_staking: stc_staking,
                 stc_staking_amount: stc_amount,
                 version: 1u128,
                 token_staking_event: Event::new_event_handle<TokenStakingEvent>(account),
                 token_exchange_event: Event::new_event_handle<TokenExchangeEvent>(account),
-            };
-            move_to<Staking<TokenType>>(account, staking_obj);
-            staking = &mut staking_obj;
+            });
+            staking = borrow_global_mut<Staking<TokenType>>(signer_addr);
         };
         // add total stc staking amount
         offering.stc_staking_amount = offering.stc_staking_amount + stc_amount;
