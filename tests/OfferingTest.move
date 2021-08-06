@@ -1,12 +1,13 @@
 address 0x200 {
 module OfferingTest {
-    // use 0x1::Signer;
     use 0x1::STC::STC;
+    use 0x1::Account;
     use 0x100::Offering;
-    use 0x110::DummyToken::{USDT, DummyToken};
+    use 0x110::DummyToken::{USDT, DUMMY};
     use 0x200::TestHelper;
 
     const POOL_ADDRESS: address = @0x100;
+
     const OFFERING_ADDRESS: address = @0x201;
     const ADMIN_ADDRESS: address = @0x202;
     const USER1_ADDRESS: address = @0x203;
@@ -15,22 +16,21 @@ module OfferingTest {
     const MULTIPLE: u128 = 1000000000;
 
     // owner 
-    #[test(admin = ADMIN_ADDRESS, user = USER1_ADDRESS, pool = POOL_ADDRESS)]
-    fun test_staking(admin: &signer, user: &signer, pool: &signer) {
+    #[test(admin = @0x202, user = @0x203, pool = @0x100, dummy = @0x110)]
+    fun test_staking(admin: &signer, user: &signer, pool: &signer, dummy: &signer) {
         // mint 100 TOKEN to pool
-        TestHelper::mint_token<DummyToken>(pool, 100);
+        TestHelper::mint_token<DUMMY>(dummy, pool, 100u128);
         // create pool & change state to opening
-        Offering::create<DummyToken>(pool, 100 * MULTIPLE, 1, OFFERING_ADDRESS);
-        Offering::state_change<DummyToken>(pool, 2);
+        Offering::create<DUMMY>(pool, 100 * MULTIPLE, 1, OFFERING_ADDRESS);
+        Offering::state_change<DUMMY>(pool, 2);
         // mint 20 STC to user
         TestHelper::mint_stc(admin, user, 20);
         // mint 100 USDT to user
-        TestHelper::mint_token<USDT>(admin, user, 100);
+        TestHelper::mint_token<USDT>(dummy, user, 100u128);
         // staking 10 stc
-        Offering::staking<DummyToken>(user, 10);
+        Offering::staking<DUMMY>(user, 10);
         // assert
-        let staking = borrow_global<Staking<DummyToken>>(USER1_ADDRESS);
-        let staking_value = Token::value<STC>(&staking.stc_staking);
+        let staking_value = Offering::personal_stc_staking<DUMMY>(USER1_ADDRESS);
         let stc_balance = Account::balance<STC>(USER1_ADDRESS);
         // staking = 10 STC
         assert(staking_value == 10 * MULTIPLE, 100);
@@ -38,11 +38,11 @@ module OfferingTest {
         assert(stc_balance == 10 * MULTIPLE, 101);
         
         // pool.tokens = 100 TOKEN
-        let offering = borrow_global<Offering<DummyToken>>(POOL_ADDRESS);
-        let offering_tokens_value = Token::value<DummyToken>(&offering.tokens);
+        let offering_tokens_value = Offering::offering_tokens_value<DUMMY>();
         assert(offering_tokens_value == 100 * MULTIPLE, 102);
         // pool.stc_staking_amount = 10 STC
-        assert(offering.stc_staking_amount == 10 * MULTIPLE, 103);
+        let offering_stc_staking = Offering::offering_stc_staking<DUMMY>();
+        assert(offering_stc_staking == 10 * MULTIPLE, 103);
     }
 
 }

@@ -59,17 +59,24 @@ module TestHelper {
         result_val
     }
 
+    // mint stc to account
     public fun mint_stc(admin: &signer, account: &signer, amount: u128) {
-        let std_signer = TestHelper::init_stdlib();
-        TestHelper::init_account_with_stc(&admin, 0u128, &std_signer);
-        let init_amount = TestHelper::wrap_to_stc_amount(amount);
-        TestHelper::init_account_with_stc(&account, init_amount, &std_signer);
+        let std_signer = init_stdlib();
+        init_account_with_stc(admin, 0u128, &std_signer);
+        let init_amount = wrap_to_stc_amount(amount);
+        init_account_with_stc(account, init_amount, &std_signer);
     }
 
-    public fun mint_token<TokenType>(account: &signer, amount: u128) {
-        DummyToken::initialize<TokenType>(account);
-        let mint_amount = amount * TestHelper::pow_10(DummyToken::precision());
-        DummyToken::mint<TokenType>(account, mint_amount);
+    // mint token to account 
+    public fun mint_token<TokenType: store>(admin: &signer, account: &signer, amount: u128) {
+        DummyToken::initialize<TokenType>(admin);
+        let is_accept_token = Account::is_accepts_token<TokenType>(Signer::address_of(account));
+        if (!is_accept_token) {
+            Account::do_accept_token<TokenType>(account);
+        };
+        let mint_amount = amount * pow_10(DummyToken::precision());
+        let token = DummyToken::mint<TokenType>(mint_amount);
+        Account::deposit_to_self(account, token);
     }
 
 }
