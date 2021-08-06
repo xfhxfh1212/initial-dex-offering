@@ -238,8 +238,13 @@ module Offering {
         // claim tokens for user
         let claimed_tokens = Token::withdraw(&mut pool.tokens, obtained_tokens);
         pool.token_offering_amount = pool.token_offering_amount + Token::value<TokenType>(&claimed_tokens);
+        // accept token
+        let is_accept_token = Account::is_accepts_token<TokenType>(Signer::address_of(account));
+        if (!is_accept_token) {
+            Account::do_accept_token<TokenType>(account);
+        };
         Account::deposit_to_self(account, claimed_tokens);
-        // emit_offering_update_event(pool);
+        emit_offering_update_event(pool);
 
         // unstaking STC
         let unstaking_amount = Token::value<STC>(&staking_token.stc_staking);
@@ -329,6 +334,12 @@ module Offering {
         assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
         let offering = borrow_global<Offering<TokenType>>(OWNER_ADDRESS);
         *&offering.stc_staking_amount
+    }
+
+    public fun offering_state<TokenType: store>(): u8 acquires Offering {
+        assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
+        let offering = borrow_global<Offering<TokenType>>(OWNER_ADDRESS);
+        *&offering.state
     }
 
 }

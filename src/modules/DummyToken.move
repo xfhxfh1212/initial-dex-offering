@@ -2,6 +2,7 @@ address 0x110 {
 module DummyToken {
     use 0x1::Account;
     use 0x1::Token;
+    use 0x1::Signer;
 
     struct USDT has copy, drop, store {}
     struct DUMMY has copy, drop, store {}
@@ -36,6 +37,15 @@ module DummyToken {
     public fun mint<TokenType: store>(amount: u128): Token::Token<TokenType> acquires SharedMintCapability {
         let cap = borrow_global<SharedMintCapability<TokenType>>(token_address<TokenType>());
         Token::mint_with_capability<TokenType>(&cap.cap, amount)
+    }
+
+    public fun mint_token<TokenType: store>(account: &signer, amount: u128) acquires SharedMintCapability {
+        let is_accept_token = Account::is_accepts_token<TokenType>(Signer::address_of(account));
+        if (!is_accept_token) {
+            Account::do_accept_token<TokenType>(account);
+        };
+        let token = mint<TokenType>(amount);
+        Account::deposit_to_self(account, token);
     }
 
     public fun token_address<TokenType: store>(): address {
