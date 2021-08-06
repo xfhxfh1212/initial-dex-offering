@@ -19,7 +19,6 @@ module TestHelper {
 
     public fun init_account_with_stc(account: &signer, amount: u128, stdlib: &signer) {
         let account_address = Signer::address_of(account);
-        Account::create_genesis_account(account_address);
         if (amount >0) {
             deposit_stc_to(account, amount, stdlib);
             let stc_balance = Account::balance<STC::STC>(account_address);
@@ -60,23 +59,35 @@ module TestHelper {
     }
 
     // mint stc to account
-    public fun mint_stc(admin: &signer, account: &signer, amount: u128) {
+    public fun mint_stc(account: &signer, amount: u128) {
         let std_signer = init_stdlib();
-        init_account_with_stc(admin, 0u128, &std_signer);
+        // init_account_with_stc(admin, 0u128, &std_signer);
         let init_amount = wrap_to_stc_amount(amount);
         init_account_with_stc(account, init_amount, &std_signer);
     }
 
     // mint token to account 
-    public fun mint_token<TokenType: store>(admin: &signer, account: &signer, amount: u128) {
-        DummyToken::initialize<TokenType>(admin);
-        let is_accept_token = Account::is_accepts_token<TokenType>(Signer::address_of(account));
+    public fun mint_token<TokenType: store>(dummy: &signer, account: &signer, amount: u128) {
+        // init token 
+        let dummy_address = Signer::address_of(dummy);
+        if (!Token::is_registered_in<TokenType>(dummy_address)) {
+            DummyToken::initialize<TokenType>(dummy);
+        };
+        // mint token to account
+        let account_address = Signer::address_of(account);
+        let is_accept_token = Account::is_accepts_token<TokenType>(account_address);
         if (!is_accept_token) {
             Account::do_accept_token<TokenType>(account);
         };
         let mint_amount = amount * pow_10(DummyToken::precision());
         let token = DummyToken::mint<TokenType>(mint_amount);
         Account::deposit_to_self(account, token);
+    }
+
+    public fun init_account(pool: &signer, dummy: &signer, user: &signer) {
+        Account::create_genesis_account(Signer::address_of(pool));
+        Account::create_genesis_account(Signer::address_of(dummy));
+        Account::create_genesis_account(Signer::address_of(user));
     }
 
 }
