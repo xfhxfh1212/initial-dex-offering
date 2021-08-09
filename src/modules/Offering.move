@@ -7,6 +7,7 @@ module Offering2 {
     use 0x1::Account;
     use 0x1::Signer;
     use 0x1::Token;
+    use 0x1::Math;
 
     // todo: address need replace
     use 0xd501465255d22d1751aae83651421198::DummyToken::USDT;
@@ -224,7 +225,7 @@ module Offering2 {
         assert(pool.state == OFFERING_UNSTAKING, Errors::invalid_state(STATE_ERROR));
 
         // obtained token
-        let obtained_tokens = pool.token_total_amount * staking_token.stc_staking_amount / pool.stc_staking_amount;
+        let obtained_tokens = Math::mul_div(pool.token_total_amount, staking_token.stc_staking_amount, pool.stc_staking_amount);
         let amount = Token::value<TokenType>(&pool.tokens);
         assert(amount >= obtained_tokens, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // USDT
