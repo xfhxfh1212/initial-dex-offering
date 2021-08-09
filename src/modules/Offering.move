@@ -1,5 +1,5 @@
 address 0xd501465255d22d1751aae83651421198 {
-module Offering2 {
+module Offering {
     use 0x1::STC::STC;
     use 0x1::Event;
     use 0x1::Errors;
@@ -31,6 +31,7 @@ module Offering2 {
     const STAKING_NOT_EXISTS : u64 = 100005;
     const OFFERING_NOT_EXISTS : u64 = 100006;
     const CAN_NOT_CHANGE_BY_CURRENT_USER : u64 = 100007;
+    const EXCEED_PERSONAL_STC_STAKING_LIMIT : u64 = 100008;
 
     // IDO token pool
     struct Offering<TokenType: store> has key, store {
@@ -40,6 +41,8 @@ module Offering2 {
         token_total_amount: u128,
         // usdt exchange rate, never changed
         usdt_rate: u128,
+        // personal stc staking upper limit, never changed
+        personal_stc_staking_limit: u128,
         // IDO state
         state: u8,
         // IDO owner address
@@ -135,14 +138,19 @@ module Offering2 {
         // check resource exist
         let staking: &mut Staking<TokenType>;
         if (exists<Staking<TokenType>>(signer_addr)) {
-            // deposit stc to staking
+            // personal stc upper limit
             staking = borrow_global_mut<Staking<TokenType>>(signer_addr);
+            let stc_staking_amount = staking.stc_staking_amount + stc_amount;
+            assert(!(stc_staking_amount > offering.personal_stc_staking_limit), Errors::invalid_argument(EXCEED_PERSONAL_STC_STAKING_LIMIT));
+            // deposit stc to staking
             Token::deposit(&mut staking.stc_staking, stc_staking);
             // add personal stc staking amount
-            staking.stc_staking_amount = staking.stc_staking_amount + stc_amount;
+            staking.stc_staking_amount = stc_staking_amount;
             // version + 1
             staking.version = staking.version + 1;
         } else {
+            // personal stc upper limit
+            assert(!(stc_amount > offering.personal_stc_staking_limit), Errors::invalid_argument(EXCEED_PERSONAL_STC_STAKING_LIMIT));
             move_to<Staking<TokenType>>(account, Staking<TokenType> {
                 stc_staking: stc_staking,
                 stc_staking_amount: stc_amount,
@@ -269,7 +277,7 @@ module Offering2 {
     }
 
     // create IDO project
-    public fun create<TokenType: store>(account: &signer, token_amount: u128, usdt_rate: u128, offering_addr: address) 
+    public fun create<TokenType: store>(account: &signer, token_amount: u128, usdt_rate: u128, personal_stc_staking_limit: u128, offering_addr: address) 
     acquires Offering {
         let owner_address = Signer::address_of(account);
         assert(owner_address == OWNER_ADDRESS, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
@@ -279,6 +287,7 @@ module Offering2 {
         move_to<Offering<TokenType>>(account, Offering<TokenType> {
             tokens: tokens,
             usdt_rate: usdt_rate,
+            personal_stc_staking_limit: personal_stc_staking_limit,
             state: OFFERING_PENDING,
             offering_addr: offering_addr,
             stc_staking_amount: 0,
