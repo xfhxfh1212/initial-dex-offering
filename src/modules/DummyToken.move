@@ -1,5 +1,4 @@
-// todo 更换与offering不同地址
-address 0xd501465255d22d1751aae83651421198 {
+address 0xd800a4813e2f3ef20f9f541004dbd189 {
 module DummyToken {
     use 0x1::Account;
     use 0x1::Token;

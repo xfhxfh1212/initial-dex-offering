@@ -7,10 +7,9 @@ module Offering {
     use 0x1::Account;
     use 0x1::Signer;
     use 0x1::Token;
-    use 0x1::Math;
 
     // todo: address need replace
-    use 0xd501465255d22d1751aae83651421198::DummyToken::USDT;
+    use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::USDT;
     // todo: address need replace
     const OWNER_ADDRESS: address = @0xd501465255d22d1751aae83651421198;
     // waiting for open, forbid any operation
@@ -142,7 +141,7 @@ module Offering {
             // personal stc upper limit
             staking = borrow_global_mut<Staking<TokenType>>(signer_addr);
             let stc_staking_amount = staking.stc_staking_amount + stc_amount;
-            assert(!(stc_staking_amount > offering.personal_stc_staking_limit), Errors::invalid_argument(EXCEED_PERSONAL_STC_STAKING_LIMIT));
+            assert(stc_staking_amount <= offering.personal_stc_staking_limit, Errors::invalid_argument(EXCEED_PERSONAL_STC_STAKING_LIMIT));
             // deposit stc to staking
             Token::deposit(&mut staking.stc_staking, stc_staking);
             // add personal stc staking amount
@@ -151,7 +150,7 @@ module Offering {
             staking.version = staking.version + 1;
         } else {
             // personal stc upper limit
-            assert(!(stc_amount > offering.personal_stc_staking_limit), Errors::invalid_argument(EXCEED_PERSONAL_STC_STAKING_LIMIT));
+            assert(stc_amount <= offering.personal_stc_staking_limit, Errors::invalid_argument(EXCEED_PERSONAL_STC_STAKING_LIMIT));
             move_to<Staking<TokenType>>(account, Staking<TokenType> {
                 stc_staking: stc_staking,
                 stc_staking_amount: stc_amount,
@@ -233,12 +232,12 @@ module Offering {
         assert(pool.state == OFFERING_UNSTAKING, Errors::invalid_state(STATE_ERROR));
 
         // obtained token
-        let obtained_tokens = Math::mul_div(pool.token_total_amount, staking_token.stc_staking_amount, pool.stc_staking_amount);
+        let obtained_tokens = mul_div(pool.token_total_amount, staking_token.stc_staking_amount, pool.stc_staking_amount);
         let amount = Token::value<TokenType>(&pool.tokens);
         assert(amount >= obtained_tokens, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // USDT
 
-        let need_pay_amount = Math::mul_div(pool.usdt_rate, obtained_tokens, Token::scaling_factor<TokenType>());
+        let need_pay_amount = mul_div(pool.usdt_rate, obtained_tokens, Token::scaling_factor<TokenType>());
         let usdt_balance = Account::balance<USDT>(user_address);
         assert(usdt_balance >= need_pay_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // pay USDT for token
@@ -351,6 +350,22 @@ module Offering {
         assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
         let offering = borrow_global<Offering<TokenType>>(OWNER_ADDRESS);
         *&offering.state
+    }
+
+      public fun mul_div(x: u128, y: u128, z: u128): u128 {
+        if ( y  == z ) {
+            return x
+        };
+        if ( x > z) {
+            return x/z*y
+        };
+        let a = x / z;
+        let b = x % z;
+        //x = a * z + b;
+        let c = y / z;
+        let d = y % z;
+        //y = c * z + d;
+        a * c * z + a * d + b * c + b * d / z
     }
 
 }
