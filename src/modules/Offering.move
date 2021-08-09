@@ -1,5 +1,5 @@
-address 0x100 {
-module Offering {
+address 0xd501465255d22d1751aae83651421198 {
+module Offering2 {
     use 0x1::STC::STC;
     use 0x1::Event;
     use 0x1::Errors;
@@ -9,9 +9,9 @@ module Offering {
     use 0x1::Token;
 
     // todo: address need replace
-    use 0x110::DummyToken::USDT;
+    use 0xd501465255d22d1751aae83651421198::DummyToken::USDT;
     // todo: address need replace
-    const OWNER_ADDRESS: address = @0x100;
+    const OWNER_ADDRESS: address = @0xd501465255d22d1751aae83651421198;
     // waiting for open, forbid any operation
     const OFFERING_PENDING: u8 = 1;
     // opening for staking or unstaking

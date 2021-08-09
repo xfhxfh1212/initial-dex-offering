@@ -1,4 +1,4 @@
-address 0x110 {
+address 0xd501465255d22d1751aae83651421198 {
 module DummyToken {
     use 0x1::Account;
     use 0x1::Token;
