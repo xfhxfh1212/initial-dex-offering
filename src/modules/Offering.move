@@ -237,7 +237,8 @@ module Offering {
         let amount = Token::value<TokenType>(&pool.tokens);
         assert(amount >= obtained_tokens, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // USDT
-        let need_pay_amount = pool.usdt_rate * obtained_tokens;
+
+        let need_pay_amount = Math::mul_div(pool.usdt_rate, obtained_tokens, Token::scaling_factor<TokenType>());
         let usdt_balance = Account::balance<USDT>(user_address);
         assert(usdt_balance >= need_pay_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
         // pay USDT for token
