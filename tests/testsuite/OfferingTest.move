@@ -1,9 +1,9 @@
-//! account: dummy, 0x110, 20000000000 0x1::STC::STC
+//! account: dummy, 0xd501465255d22d1751aae83651421198, 20000000000 0x1::STC::STC
 //! sender: dummy
 address dummy_address = {{dummy}};
 script {
     use 0x1::Token;
-    use 0x110::DummyToken::{Self, DUMMY, USDT};
+    use 0xd501465255d22d1751aae83651421198::DummyToken::{Self, DUMMY, USDT};
 
     fun init_dummy(sender: signer) {
         DummyToken::initialize<DUMMY>(&sender);
@@ -16,13 +16,13 @@ script {
 // check: "Keep(EXECUTED)"
 
 //! new-transaction
-//! account: pool, 0x100, 20000000000 0x1::STC::STC
+//! account: pool, 0xd501465255d22d1751aae83651421198, 20000000000 0x1::STC::STC
 //! sender: pool
 address pool_address = {{pool}};
 script {
     use 0x1::Account;
-    use 0x100::Offering;
-    use 0x110::DummyToken::{Self, USDT, DUMMY};
+    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0xd501465255d22d1751aae83651421198::DummyToken::{Self, USDT, DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
     fun test_create(sender: signer) {
@@ -34,7 +34,7 @@ script {
         Account::do_accept_token<USDT>(&sender);
 
         // create pool 
-        Offering::create<DUMMY>(&sender, 100 * MULTIPLE, 1, @pool_address);
+        Offering::create<DUMMY>(&sender, 100 * MULTIPLE, 1, 20 * MULTIPLE, @pool_address);
         let offering_tokens_value = Offering::offering_tokens_value<DUMMY>();
         assert(offering_tokens_value == 100 * MULTIPLE, 1101);
         assert(Offering::offering_state<DUMMY>() == 1, 1102);
@@ -51,8 +51,8 @@ script {
 address user_address = {{user}};
 script {
     use 0x1::Account;
-    use 0x100::Offering;
-    use 0x110::DummyToken::{Self, USDT, DUMMY};
+    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0xd501465255d22d1751aae83651421198::DummyToken::{Self, USDT, DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
     fun test_staking(sender: signer) {
@@ -81,8 +81,8 @@ script {
 //! sender: pool
 address pool_address = {{pool}};
 script {
-    use 0x100::Offering;
-    use 0x110::DummyToken::{DUMMY};
+    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0xd501465255d22d1751aae83651421198::DummyToken::{DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
     fun update_state_to_staking(sender: signer) {
@@ -97,8 +97,8 @@ script {
 //! sender: user
 address user_address = {{user}};
 script {
-    use 0x100::Offering;
-    use 0x110::DummyToken::{DUMMY};
+    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0xd501465255d22d1751aae83651421198::DummyToken::{DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
     fun test_unstaking(sender: signer) {
@@ -118,8 +118,8 @@ script {
 //! sender: pool
 address pool_address = {{pool}};
 script {
-    use 0x100::Offering;
-    use 0x110::DummyToken::{DUMMY};
+    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0xd501465255d22d1751aae83651421198::DummyToken::{DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
     fun update_state_to_unstaking(sender: signer) {
@@ -137,8 +137,8 @@ address pool_address = {{pool}};
 script {
     use 0x1::Account;
     use 0x1::STC::STC;
-    use 0x100::Offering;
-    use 0x110::DummyToken::{USDT, DUMMY};
+    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0xd501465255d22d1751aae83651421198::DummyToken::{USDT, DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
     fun test_exchange(sender: signer) {
