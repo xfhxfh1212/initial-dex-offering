@@ -16,12 +16,12 @@ script {
 // check: "Keep(EXECUTED)"
 
 //! new-transaction
-//! account: pool, 0xd501465255d22d1751aae83651421198, 20000000000 0x1::STC::STC
+//! account: pool, 0x99a287696c35e978c19249400c616c6a, 20000000000 0x1::STC::STC
 //! sender: pool
 address pool_address = {{pool}};
 script {
     use 0x1::Account;
-    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0x99a287696c35e978c19249400c616c6a::Offering;
     use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::{Self, USDT, DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
@@ -51,7 +51,7 @@ script {
 address user_address = {{user}};
 script {
     use 0x1::Account;
-    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0x99a287696c35e978c19249400c616c6a::Offering;
     use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::{Self, USDT, DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
@@ -81,7 +81,7 @@ script {
 //! sender: pool
 address pool_address = {{pool}};
 script {
-    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0x99a287696c35e978c19249400c616c6a::Offering;
     use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::{DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
@@ -97,7 +97,7 @@ script {
 //! sender: user
 address user_address = {{user}};
 script {
-    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0x99a287696c35e978c19249400c616c6a::Offering;
     use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::{DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
@@ -118,7 +118,7 @@ script {
 //! sender: pool
 address pool_address = {{pool}};
 script {
-    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0x99a287696c35e978c19249400c616c6a::Offering;
     use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::{DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
@@ -137,7 +137,7 @@ address pool_address = {{pool}};
 script {
     use 0x1::Account;
     use 0x1::STC::STC;
-    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0x99a287696c35e978c19249400c616c6a::Offering;
     use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::{USDT, DUMMY};
     const MULTIPLE: u128 = 1000000000;
 
