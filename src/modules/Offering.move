@@ -197,13 +197,7 @@ module Offering {
         // destory 
         if (staking_value == stc_amount) {
             // destory resource
-            let Staking<TokenType> {
-                stc_staking: _,
-                stc_staking_amount: _,
-                version: _,
-                token_staking_event: _,
-                token_exchange_event: _,
-            } = staking;
+            destory_staking<TokenType>(signer_addr)
         } else {
             staking.version = staking.version + 1;
             // emit unstaking event
@@ -266,15 +260,22 @@ module Offering {
             // token exchange amount.
             token_exchange_amount: obtained_tokens
         });
+        destory_staking<TokenType>(user_address);
+    }
 
-        // destory resource
+    // destory resource
+    fun destory_staking<TokenType: store>(user_address: address) acquires Staking {
+        let staking_token = move_from<Staking<TokenType>>(user_address);
         let Staking<TokenType> {
-            stc_staking: _,
+            stc_staking,
             stc_staking_amount: _,
             version: _,
-            token_staking_event: _,
-            token_exchange_event: _,
+            token_staking_event,
+            token_exchange_event,
         } = staking_token;
+        Token::destroy_zero(stc_staking);
+        Event::destroy_handle(token_staking_event);
+        Event::destroy_handle(token_exchange_event);
     }
 
     // create IDO project
@@ -316,7 +317,7 @@ module Offering {
     public fun state_change<TokenType: store>(account: &signer, state: u8) acquires Offering {
         let owner_address = Signer::address_of(account);
         assert(owner_address == OWNER_ADDRESS, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
-        assert(state > OFFERING_PENDING && state < OFFERING_CLOSED, Errors::invalid_state(UNSUPPORT_STATE));
+        assert(state >= OFFERING_PENDING && state <= OFFERING_CLOSED, Errors::invalid_state(UNSUPPORT_STATE));
         assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
         let pool = borrow_global_mut<Offering<TokenType>>(owner_address);
         if (pool.state == state) {
