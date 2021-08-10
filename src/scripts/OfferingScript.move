@@ -1,6 +1,6 @@
-address 0xd501465255d22d1751aae83651421198 {
+address 0x99a287696c35e978c19249400c616c6a {
 module OfferingScript {
-    use 0xd501465255d22d1751aae83651421198::Offering;
+    use 0x99a287696c35e978c19249400c616c6a::Offering;
 
     public(script) fun staking<TokenType: store>(account: signer, stc_amount: u128) {
         Offering::staking<TokenType>(&account, stc_amount)

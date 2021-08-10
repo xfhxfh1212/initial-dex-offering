@@ -1,4 +1,4 @@
-address 0xd501465255d22d1751aae83651421198 {
+address 0x99a287696c35e978c19249400c616c6a {
 module Offering {
     use 0x1::STC::STC;
     use 0x1::Event;
@@ -11,7 +11,7 @@ module Offering {
     // todo: address need replace
     use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::USDT;
     // todo: address need replace
-    const OWNER_ADDRESS: address = @0xd501465255d22d1751aae83651421198;
+    const OWNER_ADDRESS: address = @0x99a287696c35e978c19249400c616c6a;
     // waiting for open, forbid any operation
     const OFFERING_PENDING: u8 = 1;
     // opening for staking or unstaking
