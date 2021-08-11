@@ -67,6 +67,8 @@ module Offering {
         // personal stc staking total amount, never changed after OFFERING_UNSTAKING
         // used for calculating the personal percentage of tokens
         stc_staking_amount: u128,
+        // flag for pay usdt
+        is_pay_off: bool,
         // the version, plus one after updating
         version: u128,
         // staking_event
@@ -154,6 +156,7 @@ module Offering {
             move_to<Staking<TokenType>>(account, Staking<TokenType> {
                 stc_staking: stc_staking,
                 stc_staking_amount: stc_amount,
+                is_pay_off: false,
                 version: 1u128,
                 token_staking_event: Event::new_event_handle<TokenStakingEvent>(account),
                 token_exchange_event: Event::new_event_handle<TokenExchangeEvent>(account),
@@ -194,21 +197,15 @@ module Offering {
             staking.stc_staking_amount = staking.stc_staking_amount - stc_amount;
             offering.stc_staking_amount = offering.stc_staking_amount - stc_amount;
         };
-        // destory 
-        if (staking_value == stc_amount) {
-            // destory resource
-            destory_staking<TokenType>(signer_addr)
-        } else {
-            staking.version = staking.version + 1;
-            // emit unstaking event
-            Event::emit_event(
-                &mut staking.token_staking_event,
-                TokenStakingEvent {
-                    version: staking.version,
-                    stc_staking_amount: offering.stc_staking_amount,
-                },
-            );
-        };
+        staking.version = staking.version + 1;
+        // emit unstaking event
+        Event::emit_event(
+            &mut staking.token_staking_event,
+            TokenStakingEvent {
+                version: staking.version,
+                stc_staking_amount: offering.stc_staking_amount,
+            },
+        );
         // version + 1
         offering.version = offering.version + 1;
         emit_offering_update_event<TokenType>(offering);
@@ -254,13 +251,14 @@ module Offering {
         let staking_tokens = Token::withdraw(&mut staking_token.stc_staking,  unstaking_amount);
         Account::deposit_to_self(account, staking_tokens);
 
+        staking_token.is_pay_off = true;
+
         Event::emit_event<TokenExchangeEvent>(&mut staking_token.token_exchange_event, TokenExchangeEvent {
             // the version.
             version: staking_token.version,
             // token exchange amount.
             token_exchange_amount: obtained_tokens
         });
-        destory_staking<TokenType>(user_address);
     }
 
     // destory resource
@@ -269,6 +267,7 @@ module Offering {
         let Staking<TokenType> {
             stc_staking,
             stc_staking_amount: _,
+            is_pay_off: _,
             version: _,
             token_staking_event,
             token_exchange_event,
