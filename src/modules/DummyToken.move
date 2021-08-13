@@ -1,4 +1,4 @@
-address 0xd800a4813e2f3ef20f9f541004dbd189 {
+address 0x4ef1e60bad4c5b9bbccf0de115e1f5a0 {
 module DummyToken {
     use 0x1::Account;
     use 0x1::Token;
@@ -6,6 +6,13 @@ module DummyToken {
 
     struct USDT has copy, drop, store {}
     struct DUMMY has copy, drop, store {}
+    struct BTC has copy, drop, store {}
+    struct ETH has copy, drop, store {}
+    struct DOGE has copy, drop, store {}
+    struct XRP has copy, drop, store {}
+    struct BCH has copy, drop, store {}
+    struct LTC has copy, drop, store {}
+    struct TRX has copy, drop, store {}
 
     const PRECISION: u8 = 9;
 

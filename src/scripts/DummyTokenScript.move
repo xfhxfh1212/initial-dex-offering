@@ -1,6 +1,6 @@
-address 0xd800a4813e2f3ef20f9f541004dbd189 {
+address 0x4ef1e60bad4c5b9bbccf0de115e1f5a0 {
 module DummyTokenScript {
-    use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken;
+    use 0x4ef1e60bad4c5b9bbccf0de115e1f5a0::DummyToken;
 
     public(script) fun initialize<TokenType: store>(account: signer) {
         DummyToken::initialize<TokenType>(&account);

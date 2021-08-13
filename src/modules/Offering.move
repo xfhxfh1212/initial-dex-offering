@@ -1,6 +1,5 @@
-address 0x99a287696c35e978c19249400c616c6a {
+address 0x64c66296d98d6ab08579b14487157e05 {
 module Offering {
-    use 0x1::STC::STC;
     use 0x1::Event;
     use 0x1::Errors;
 
@@ -9,9 +8,7 @@ module Offering {
     use 0x1::Token;
 
     // todo: address need replace
-    use 0xd800a4813e2f3ef20f9f541004dbd189::DummyToken::USDT;
-    // todo: address need replace
-    const OWNER_ADDRESS: address = @0x99a287696c35e978c19249400c616c6a;
+    const OWNER_ADDRESS: address = @0x64c66296d98d6ab08579b14487157e05;
     // waiting for open, forbid any operation
     const OFFERING_PENDING: u8 = 1;
     // opening for staking or unstaking
@@ -31,27 +28,27 @@ module Offering {
     const STAKING_NOT_EXISTS : u64 = 100005;
     const OFFERING_NOT_EXISTS : u64 = 100006;
     const CAN_NOT_CHANGE_BY_CURRENT_USER : u64 = 100007;
-    const EXCEED_PERSONAL_STC_STAKING_LIMIT : u64 = 100008;
+    const EXCEED_PERSONAL_STAKING_AMOUNT_LIMIT : u64 = 100008;
 
     // IDO token pool
-    struct Offering<TokenType: store> has key, store {
+    struct Offering<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store> has key, store {
         // tokens for IDO
-        tokens: Token::Token<TokenType>,
+        offering_tokens: Token::Token<OfferingTokenType>,
         // total token amount for IDO, never changed
-        token_total_amount: u128,
-        // usdt exchange rate, never changed
-        usdt_rate: u128,
-        // personal stc staking upper limit, never changed
-        personal_stc_staking_limit: u128,
+        offering_token_total_amount: u128,
+        // exchange rate, never changed
+        exchange_rate: u128,
+        // personal staking token upper limit, never changed
+        personal_staking_token_amount_limit: u128,
         // IDO state
         state: u8,
         // IDO owner address
         offering_addr: address,
-        // stc staking total amount, never changed after OFFERING_UNSTAKING
+        // staking token total amount, never changed after OFFERING_UNSTAKING
         // used for calculating the personal percentage of tokens
-        stc_staking_amount: u128,
+        staking_token_amount: u128,
         // amount of token offered 
-        token_offering_amount: u128,
+        offering_token_exchanged_amount: u128,
         // the version, plus one after updating
         version: u128,
         // create eventt
@@ -61,13 +58,13 @@ module Offering {
     }
 
     // personal staking
-    struct Staking<TokenType: store> has key, store {
-        // current staking stc
-        stc_staking: Token::Token<STC>,
-        // personal stc staking total amount, never changed after OFFERING_UNSTAKING
+    struct Staking<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store> has key, store {
+        // current staking tokens
+        staking_tokens: Token::Token<StakingTokenType>,
+        // personal staking token total amount, never changed after OFFERING_UNSTAKING
         // used for calculating the personal percentage of tokens
-        stc_staking_amount: u128,
-        // flag for pay usdt
+        staking_token_amount: u128,
+        // flag for pay token
         is_pay_off: bool,
         // the version, plus one after updating
         version: u128,
@@ -81,8 +78,8 @@ module Offering {
     struct OfferingCreatedEvent has drop, store {
         // token for offering.
         token_amount: u128,
-        // usdt exchange rate.
-        usdt_rate: u128,
+        // exchange rate.
+        exchange_rate: u128,
     }
 
     // emitted when offering update state.
@@ -91,18 +88,18 @@ module Offering {
         version: u128,
         // offering state.
         state: u8,
-        // total amount of current stc staking
-        stc_staking_amount: u128,
+        // total amount of current staking token
+        staking_token_amount: u128,
         // total amount of token offered
-        token_offering_amount: u128,
+        offering_token_exchanged_amount: u128,
     }
 
     // emitted when staking or unstaking.
     struct TokenStakingEvent has drop, store {
         // the version.
         version: u128,
-        // stc staking amount.
-        stc_staking_amount: u128,
+        // staking token amount.
+        staking_token_amount: u128,
     }
 
     // emitted when exchange token.
@@ -113,89 +110,141 @@ module Offering {
         token_exchange_amount: u128,
     }
 
-    public fun emit_offering_update_event<TokenType: store>(offering: &mut Offering<TokenType>) {
-        Event::emit_event(
-            &mut offering.offering_update_event,
-            OfferingUpdateEvent { 
-                version: offering.version,
-                state: offering.state,
-                stc_staking_amount: offering.stc_staking_amount,
-                token_offering_amount: offering.token_offering_amount,
-            },
+
+    // create IDO project
+    public fun create<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>
+    (account: &signer, token_amount: u128, exchange_rate: u128, personal_staking_token_amount_limit: u128, offering_addr: address) 
+    acquires Offering {
+        let owner_address = Signer::address_of(account);
+        assert(owner_address == OWNER_ADDRESS, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
+        let token_balance = Account::balance<OfferingTokenType>(owner_address);
+        assert(token_balance >= token_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
+        let offering_tokens = Account::withdraw<OfferingTokenType>(account, token_amount);
+        move_to<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(account, 
+        Offering<StakingTokenType, PaidTokenType, OfferingTokenType> {
+            offering_tokens: offering_tokens,
+            exchange_rate: exchange_rate,
+            personal_staking_token_amount_limit: personal_staking_token_amount_limit,
+            state: OFFERING_PENDING,
+            offering_addr: offering_addr,
+            staking_token_amount: 0,
+            offering_token_exchanged_amount: 0,
+            offering_token_total_amount: token_amount,
+            version: 0,
+            offering_created_event: Event::new_event_handle<OfferingCreatedEvent>(account),
+            offering_update_event: Event::new_event_handle<OfferingUpdateEvent>(account) 
+        });
+        let offering = borrow_global_mut<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(owner_address);
+        Event::emit_event<OfferingCreatedEvent>(
+            &mut offering.offering_created_event, 
+            OfferingCreatedEvent {
+                // token for offering.
+                token_amount,
+                // exchange rate.
+                exchange_rate,
+            }
         );
     }
 
+    // update state
+    // PENDING/OPENING/STAKING reversible
+    // UNSTAKING/CLOSED reversible
+    public fun state_change<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(account: &signer, state: u8) 
+    acquires Offering {
+        let owner_address = Signer::address_of(account);
+        assert(owner_address == OWNER_ADDRESS, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
+        assert(state >= OFFERING_PENDING && state <= OFFERING_CLOSED, Errors::invalid_state(UNSUPPORT_STATE));
+        assert(exists<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
+        let pool = borrow_global_mut<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(owner_address);
+        if (pool.state == state) {
+            return
+        };
+        if (pool.state > OFFERING_STAKING && state < OFFERING_UNSTAKING) {
+            ()
+        };
+        pool.state = state;
+        pool.version = pool.version + 1;
+        emit_offering_update_event<StakingTokenType, PaidTokenType, OfferingTokenType>(pool);
+    }
+
     // staking
-    // stake STC for exchange token.
-    public fun staking<TokenType: store>(account: &signer, stc_amount: u128) acquires Offering, Staking {
-        let offering = borrow_global_mut<Offering<TokenType>>(OWNER_ADDRESS);
+    // stake StakingToken for obtain OfferingToken.
+    public fun staking<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(account: &signer, staking_token_amount: u128) 
+    acquires Offering, Staking {
+        // check resource
+        assert(exists<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
         // check state
-        assert(offering.state == OFFERING_OPENING, Errors::invalid_state(STATE_ERROR));
+        let pool = borrow_global_mut<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS);
+        assert(pool.state == OFFERING_OPENING, Errors::invalid_state(STATE_ERROR));
         // check balance
         let signer_addr = Signer::address_of(account);
-        let stc_balance = Account::balance<STC>(signer_addr);
-        assert(stc_balance > stc_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
-        // move stc from balance to staking
-        let stc_staking = Account::withdraw<STC>(account, stc_amount);
+        let staking_token_balance = Account::balance<StakingTokenType>(signer_addr);
+        assert(staking_token_balance > staking_token_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
+        // withdraw staking token from balance
+        let staking_tokens = Account::withdraw<StakingTokenType>(account, staking_token_amount);
         // check resource exist
-        let staking: &mut Staking<TokenType>;
-        if (exists<Staking<TokenType>>(signer_addr)) {
-            // personal stc upper limit
-            staking = borrow_global_mut<Staking<TokenType>>(signer_addr);
-            let stc_staking_amount = staking.stc_staking_amount + stc_amount;
-            assert(stc_staking_amount <= offering.personal_stc_staking_limit, Errors::invalid_argument(EXCEED_PERSONAL_STC_STAKING_LIMIT));
-            // deposit stc to staking
-            Token::deposit(&mut staking.stc_staking, stc_staking);
-            // add personal stc staking amount
-            staking.stc_staking_amount = stc_staking_amount;
+        let staking: &mut Staking<StakingTokenType, PaidTokenType, OfferingTokenType>;
+        if (exists<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(signer_addr)) {
+            // personal staking token upper limit
+            staking = borrow_global_mut<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(signer_addr);
+            let staking_token_amount = staking.staking_token_amount + staking_token_amount;
+            assert(staking_token_amount <= pool.personal_staking_token_amount_limit, Errors::invalid_argument(EXCEED_PERSONAL_STAKING_AMOUNT_LIMIT));
+            // deposit staking token from staking
+            Token::deposit(&mut staking.staking_tokens, staking_tokens);
+            // add personal staking token amount
+            staking.staking_token_amount = staking_token_amount;
             // version + 1
             staking.version = staking.version + 1;
         } else {
-            // personal stc upper limit
-            assert(stc_amount <= offering.personal_stc_staking_limit, Errors::invalid_argument(EXCEED_PERSONAL_STC_STAKING_LIMIT));
-            move_to<Staking<TokenType>>(account, Staking<TokenType> {
-                stc_staking: stc_staking,
-                stc_staking_amount: stc_amount,
+            // personal staking token upper limit
+            assert(staking_token_amount <= pool.personal_staking_token_amount_limit, Errors::invalid_argument(EXCEED_PERSONAL_STAKING_AMOUNT_LIMIT));
+            move_to<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(account, 
+            Staking<StakingTokenType, PaidTokenType, OfferingTokenType> {
+                staking_tokens: staking_tokens,
+                staking_token_amount: staking_token_amount,
                 is_pay_off: false,
                 version: 1u128,
                 token_staking_event: Event::new_event_handle<TokenStakingEvent>(account),
                 token_exchange_event: Event::new_event_handle<TokenExchangeEvent>(account),
             });
-            staking = borrow_global_mut<Staking<TokenType>>(signer_addr);
+            staking = borrow_global_mut<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(signer_addr);
         };
-        // add total stc staking amount
-        offering.stc_staking_amount = offering.stc_staking_amount + stc_amount;
-        offering.version = offering.version + 1;
+        // add total staking token amount
+        pool.staking_token_amount = pool.staking_token_amount + staking_token_amount;
+        pool.version = pool.version + 1;
         // emit staking event
         Event::emit_event(
             &mut staking.token_staking_event,
             TokenStakingEvent {
                 version: staking.version,
-                stc_staking_amount: offering.stc_staking_amount,
+                staking_token_amount: pool.staking_token_amount,
             },
         );
-        emit_offering_update_event<TokenType>(offering);
+        emit_offering_update_event<StakingTokenType, PaidTokenType, OfferingTokenType>(pool);
     }
 
     // unstaking
-    // subtract amount of staking STC.
-    public fun unstaking<TokenType: store>(account: &signer, stc_amount: u128) acquires Offering, Staking  {
-        let offering = borrow_global_mut<Offering<TokenType>>(OWNER_ADDRESS);
+    // subtract amount of staking token.
+    public fun unstaking<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(account: &signer, staking_token_amount: u128) 
+    acquires Offering, Staking  {
+        // check resource
+        assert(exists<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
         // check state
-        assert(offering.state != OFFERING_PENDING, Errors::invalid_state(STATE_ERROR));
+        let pool = borrow_global_mut<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS);
+        assert(pool.state != OFFERING_PENDING, Errors::invalid_state(STATE_ERROR));
         // check staking amount
         let signer_addr = Signer::address_of(account);
-        assert(exists<Staking<TokenType>>(signer_addr), Errors::invalid_state(STAKING_NOT_EXISTS));
-        let staking = borrow_global_mut<Staking<TokenType>>(signer_addr);
-        let staking_value = Token::value<STC>(&staking.stc_staking);
-        assert(staking_value >= stc_amount, Errors::invalid_state(INSUFFICIENT_STAKING));
-        // move stc from staking to balance
-        let stc_unstaking = Token::withdraw<STC>(&mut staking.stc_staking, stc_amount);
-        Account::deposit<STC>(signer_addr, stc_unstaking);
-        // subtract stc staking amount
-        if (offering.state == OFFERING_OPENING || offering.state == OFFERING_STAKING) {
-            staking.stc_staking_amount = staking.stc_staking_amount - stc_amount;
-            offering.stc_staking_amount = offering.stc_staking_amount - stc_amount;
+        assert(exists<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(signer_addr), Errors::invalid_state(STAKING_NOT_EXISTS));
+        let staking = borrow_global_mut<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(signer_addr);
+        let staking_value = Token::value<StakingTokenType>(&staking.staking_tokens);
+        assert(staking_value >= staking_token_amount, Errors::invalid_state(INSUFFICIENT_STAKING));
+        // move staking token from staking to balance
+        let unstaking_tokens = Token::withdraw<StakingTokenType>(&mut staking.staking_tokens, staking_token_amount);
+        Account::deposit<StakingTokenType>(signer_addr, unstaking_tokens);
+        // subtract staking token amount
+        if (pool.state == OFFERING_OPENING || pool.state == OFFERING_STAKING) {
+            staking.staking_token_amount = staking.staking_token_amount - staking_token_amount;
+            pool.staking_token_amount = pool.staking_token_amount - staking_token_amount;
         };
         staking.version = staking.version + 1;
         // emit unstaking event
@@ -203,52 +252,52 @@ module Offering {
             &mut staking.token_staking_event,
             TokenStakingEvent {
                 version: staking.version,
-                stc_staking_amount: offering.stc_staking_amount,
+                staking_token_amount: pool.staking_token_amount,
             },
         );
         // version + 1
-        offering.version = offering.version + 1;
-        emit_offering_update_event<TokenType>(offering);
+        pool.version = pool.version + 1;
+        emit_offering_update_event<StakingTokenType, PaidTokenType, OfferingTokenType>(pool);
     }
 
     // exchange token
-    // exchange token by USDT, token max amount is caculated by stc_staking_amount.
-    public fun exchange<TokenType: store>(account: &signer) acquires Staking, Offering {
+    // exchange token, token max amount is caculated by staking_token_amount.
+    public fun exchange<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(account: &signer) 
+    acquires Staking, Offering {
+        // check resource
         let user_address = Signer::address_of(account);
-        assert(exists<Staking<TokenType>>(user_address), Errors::invalid_argument(STAKING_NOT_EXISTS));
-        let staking_token = borrow_global_mut<Staking<TokenType>>(user_address);
-
-        assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
-        let pool = borrow_global_mut<Offering<TokenType>>(OWNER_ADDRESS);
+        assert(exists<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(user_address), Errors::invalid_argument(STAKING_NOT_EXISTS));
+        assert(exists<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
+        // check state
+        let pool = borrow_global_mut<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS);
         assert(pool.state == OFFERING_UNSTAKING, Errors::invalid_state(STATE_ERROR));
 
         // obtained token
-        let obtained_tokens = mul_div(pool.token_total_amount, staking_token.stc_staking_amount, pool.stc_staking_amount);
-        let amount = Token::value<TokenType>(&pool.tokens);
+        let staking_token = borrow_global_mut<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(user_address);
+        let obtained_tokens = mul_div(pool.offering_token_total_amount, staking_token.staking_token_amount, pool.staking_token_amount);
+        let amount = Token::value<OfferingTokenType>(&pool.offering_tokens);
         assert(amount >= obtained_tokens, Errors::invalid_argument(INSUFFICIENT_BALANCE));
-        // USDT
-
-        let need_pay_amount = mul_div(pool.usdt_rate, obtained_tokens, Token::scaling_factor<TokenType>());
-        let usdt_balance = Account::balance<USDT>(user_address);
-        assert(usdt_balance >= need_pay_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
-        // pay USDT for token
-        let usdt_tokens = Account::withdraw<USDT>(account, need_pay_amount);
-        Account::deposit(OWNER_ADDRESS, usdt_tokens);
+        // pay token
+        let need_pay_amount = mul_div(pool.exchange_rate, obtained_tokens, Token::scaling_factor<OfferingTokenType>());
+        let paid_token_balance = Account::balance<PaidTokenType>(user_address);
+        assert(paid_token_balance >= need_pay_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
+        let paid_tokens = Account::withdraw<PaidTokenType>(account, need_pay_amount);
+        Account::deposit(OWNER_ADDRESS, paid_tokens);
 
         // claim tokens for user
-        let claimed_tokens = Token::withdraw(&mut pool.tokens, obtained_tokens);
-        pool.token_offering_amount = pool.token_offering_amount + Token::value<TokenType>(&claimed_tokens);
+        let claimed_tokens = Token::withdraw(&mut pool.offering_tokens, obtained_tokens);
+        pool.offering_token_exchanged_amount = pool.offering_token_exchanged_amount + Token::value<OfferingTokenType>(&claimed_tokens);
         // accept token
-        let is_accept_token = Account::is_accepts_token<TokenType>(Signer::address_of(account));
+        let is_accept_token = Account::is_accepts_token<OfferingTokenType>(Signer::address_of(account));
         if (!is_accept_token) {
-            Account::do_accept_token<TokenType>(account);
+            Account::do_accept_token<OfferingTokenType>(account);
         };
         Account::deposit_to_self(account, claimed_tokens);
         emit_offering_update_event(pool);
 
-        // unstaking STC
-        let unstaking_amount = Token::value<STC>(&staking_token.stc_staking);
-        let staking_tokens = Token::withdraw(&mut staking_token.stc_staking,  unstaking_amount);
+        // unstaking StakingToken
+        let unstaking_amount = Token::value<StakingTokenType>(&staking_token.staking_tokens);
+        let staking_tokens = Token::withdraw(&mut staking_token.staking_tokens,  unstaking_amount);
         Account::deposit_to_self(account, staking_tokens);
 
         staking_token.is_pay_off = true;
@@ -261,116 +310,84 @@ module Offering {
         });
     }
 
+    // emit offering_update_event
+    fun emit_offering_update_event<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>
+    (offering: &mut Offering<StakingTokenType, PaidTokenType, OfferingTokenType>) {
+        Event::emit_event(
+            &mut offering.offering_update_event,
+            OfferingUpdateEvent { 
+                version: offering.version,
+                state: offering.state,
+                staking_token_amount: offering.staking_token_amount,
+                offering_token_exchanged_amount: offering.offering_token_exchanged_amount,
+            },
+        );
+    }
+
     // destory resource
-    fun destory_staking<TokenType: store>(user_address: address) acquires Staking {
-        let staking_token = move_from<Staking<TokenType>>(user_address);
-        let Staking<TokenType> {
-            stc_staking,
-            stc_staking_amount: _,
+    fun destory_staking<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(user_address: address) 
+    acquires Staking {
+        let staking_token = move_from<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(user_address);
+        let Staking<StakingTokenType, PaidTokenType, OfferingTokenType> {
+            staking_tokens,
+            staking_token_amount: _,
             is_pay_off: _,
             version: _,
             token_staking_event,
             token_exchange_event,
         } = staking_token;
-        Token::destroy_zero(stc_staking);
+        Token::destroy_zero(staking_tokens);
         Event::destroy_handle(token_staking_event);
         Event::destroy_handle(token_exchange_event);
     }
 
-    // create IDO project
-    public fun create<TokenType: store>(account: &signer, token_amount: u128, usdt_rate: u128, personal_stc_staking_limit: u128, offering_addr: address) 
+    // withdraw remain tokens when Offering closed
+    public fun withdraw_offering_tokens<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(account: &signer) 
     acquires Offering {
         let owner_address = Signer::address_of(account);
         assert(owner_address == OWNER_ADDRESS, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
-        let token_balance = Account::balance<TokenType>(owner_address);
-        assert(token_balance >= token_amount, Errors::invalid_argument(INSUFFICIENT_BALANCE));
-        let tokens = Account::withdraw<TokenType>(account, token_amount);
-        move_to<Offering<TokenType>>(account, Offering<TokenType> {
-            tokens: tokens,
-            usdt_rate: usdt_rate,
-            personal_stc_staking_limit: personal_stc_staking_limit,
-            state: OFFERING_PENDING,
-            offering_addr: offering_addr,
-            stc_staking_amount: 0,
-            token_offering_amount: 0,
-            token_total_amount: token_amount,
-            version: 0,
-            offering_created_event: Event::new_event_handle<OfferingCreatedEvent>(account),
-            offering_update_event: Event::new_event_handle<OfferingUpdateEvent>(account) 
-        });
-        let offering = borrow_global_mut<Offering<TokenType>>(owner_address);
-        Event::emit_event<OfferingCreatedEvent>(
-            &mut offering.offering_created_event, 
-            OfferingCreatedEvent {
-                // token for offering.
-                token_amount,
-                // usdt exchange rate.
-                usdt_rate,
-            }
-        );
-    }
-
-    // update state
-    // PENDING/OPENING/STAKING reversible
-    // UNSTAKING/CLOSED reversible
-    public fun state_change<TokenType: store>(account: &signer, state: u8) acquires Offering {
-        let owner_address = Signer::address_of(account);
-        assert(owner_address == OWNER_ADDRESS, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
-        assert(state >= OFFERING_PENDING && state <= OFFERING_CLOSED, Errors::invalid_state(UNSUPPORT_STATE));
-        assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
-        let pool = borrow_global_mut<Offering<TokenType>>(owner_address);
-        if (pool.state == state) {
-            return
-        };
-        if (pool.state > OFFERING_STAKING && state < OFFERING_UNSTAKING) {
-            ()
-        };
-        pool.state = state;
-        pool.version = pool.version + 1;
-        emit_offering_update_event<TokenType>(pool);
-    }
-
-    // withdraw remain tokens when Offering closed
-    public fun withdraw_offering_tokens<TokenType: store>(account: &signer) acquires Offering {
-        let owner_address = Signer::address_of(account);
-        assert(owner_address == OWNER_ADDRESS, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
-        assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
-        let pool = borrow_global_mut<Offering<TokenType>>(OWNER_ADDRESS);
+        assert(exists<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
+        let pool = borrow_global_mut<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS);
         assert(pool.state == OFFERING_CLOSED, Errors::invalid_state(STATE_ERROR));
-        let remain_amount = Token::value<TokenType>(&pool.tokens);
-        let remain_tokens = Token::withdraw(&mut pool.tokens, remain_amount);
-        Account::deposit_to_self(account, remain_tokens);
+        let remain_amount = Token::value<OfferingTokenType>(&pool.offering_tokens);
+        let remain_tokens = Token::withdraw<OfferingTokenType>(&mut pool.offering_tokens, remain_amount);
+        Account::deposit_to_self<OfferingTokenType>(account, remain_tokens);
         emit_offering_update_event(pool);
     }
 
-    public fun personal_stc_staking<TokenType: store>(account_addr: address): u128 acquires Staking {
-        let staking = borrow_global<Staking<TokenType>>(account_addr);
-        Token::value<STC>(&staking.stc_staking)
+
+    public fun personal_staking_token_amount<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(account_addr: address): u128 
+    acquires Staking {
+        let staking = borrow_global<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(account_addr);
+        Token::value<StakingTokenType>(&staking.staking_tokens)
     }
 
-    public fun offering_tokens_value<TokenType: store>(): u128 acquires Offering {
-        let offering = borrow_global<Offering<TokenType>>(OWNER_ADDRESS);
-        Token::value<TokenType>(&offering.tokens)
+    public fun offering_tokens_value<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(): u128 
+    acquires Offering {
+        let offering = borrow_global<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS);
+        Token::value<OfferingTokenType>(&offering.offering_tokens)
     }
 
-    public fun offering_stc_staking<TokenType: store>(): u128 acquires Offering {
-        assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
-        let offering = borrow_global<Offering<TokenType>>(OWNER_ADDRESS);
-        *&offering.stc_staking_amount
+    public fun offering_staking_token_amount<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(): u128 
+    acquires Offering {
+        assert(exists<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
+        let offering = borrow_global<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS);
+        *&offering.staking_token_amount
     }
 
-    public fun offering_state<TokenType: store>(): u8 acquires Offering {
-        assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
-        let offering = borrow_global<Offering<TokenType>>(OWNER_ADDRESS);
+    public fun offering_state<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(): u8 
+    acquires Offering {
+        assert(exists<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
+        let offering = borrow_global<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(OWNER_ADDRESS);
         *&offering.state
     }
 
-      public fun mul_div(x: u128, y: u128, z: u128): u128 {
-        if ( y  == z ) {
+    public fun mul_div(x: u128, y: u128, z: u128): u128 {
+        if (y == z) {
             return x
         };
-        if ( x > z) {
-            return x/z*y
+        if (x == z) {
+            return y
         };
         let a = x / z;
         let b = x % z;
