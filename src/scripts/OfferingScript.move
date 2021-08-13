@@ -22,5 +22,9 @@ module OfferingScript {
         Offering::state_change<TokenType>(&account, state)
     }
 
+    public(script) fun withdraw_offering_tokens<TokenType: store>(account: signer) {
+        Offering::withdraw_offering_tokens<TokenType>(&account)
+    }
+
 }
 }

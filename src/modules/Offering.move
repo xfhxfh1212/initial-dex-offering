@@ -330,6 +330,19 @@ module Offering {
         emit_offering_update_event<TokenType>(pool);
     }
 
+    // withdraw remain tokens when Offering closed
+    public fun withdraw_offering_tokens<TokenType: store>(account: &signer) acquires Offering {
+        let owner_address = Signer::address_of(account);
+        assert(owner_address == OWNER_ADDRESS, Errors::requires_capability(CAN_NOT_CHANGE_BY_CURRENT_USER));
+        assert(exists<Offering<TokenType>>(OWNER_ADDRESS), Errors::invalid_argument(OFFERING_NOT_EXISTS));
+        let pool = borrow_global_mut<Offering<TokenType>>(OWNER_ADDRESS);
+        assert(pool.state == OFFERING_CLOSED, Errors::invalid_state(STATE_ERROR));
+        let remain_amount = Token::value<TokenType>(&pool.tokens);
+        let remain_tokens = Token::withdraw(&mut pool.tokens, remain_amount);
+        Account::deposit_to_self(account, remain_tokens);
+        emit_offering_update_event(pool);
+    }
+
     public fun personal_stc_staking<TokenType: store>(account_addr: address): u128 acquires Staking {
         let staking = borrow_global<Staking<TokenType>>(account_addr);
         Token::value<STC>(&staking.stc_staking)
