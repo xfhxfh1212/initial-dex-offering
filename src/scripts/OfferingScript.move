@@ -27,5 +27,8 @@ module OfferingScript {
         Offering::withdraw_offering_tokens<StakingTokenType, PayTokenType, OfferingTokenType>(&account)
     }
 
+    public(script) fun destory_offering<StakingTokenType: store, PayTokenType: store, OfferingTokenType: store>(account: signer) {
+        Offering::destory_offering<StakingTokenType, PayTokenType, OfferingTokenType>(&account)
+    }
 }
 }

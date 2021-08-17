@@ -297,9 +297,10 @@ module Offering {
 
         // unstaking StakingToken
         let unstaking_amount = Token::value<StakingTokenType>(&staking_token.staking_tokens);
-        let staking_tokens = Token::withdraw(&mut staking_token.staking_tokens,  unstaking_amount);
-        Account::deposit_to_self(account, staking_tokens);
-
+        if (unstaking_amount > 0u128) {
+            let staking_tokens = Token::withdraw(&mut staking_token.staking_tokens, unstaking_amount);
+            Account::deposit_to_self(account, staking_tokens);
+        };
         staking_token.is_pay_off = true;
 
         Event::emit_event<TokenExchangeEvent>(&mut staking_token.token_exchange_event, TokenExchangeEvent {
@@ -310,35 +311,28 @@ module Offering {
         });
     }
 
-    // emit offering_update_event
-    fun emit_offering_update_event<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>
-    (offering: &mut Offering<StakingTokenType, PaidTokenType, OfferingTokenType>) {
-        Event::emit_event(
-            &mut offering.offering_update_event,
-            OfferingUpdateEvent { 
-                version: offering.version,
-                state: offering.state,
-                staking_token_amount: offering.staking_token_amount,
-                offering_token_exchanged_amount: offering.offering_token_exchanged_amount,
-            },
-        );
-    }
-
     // destory resource
-    fun destory_staking<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(user_address: address) 
-    acquires Staking {
-        let staking_token = move_from<Staking<StakingTokenType, PaidTokenType, OfferingTokenType>>(user_address);
-        let Staking<StakingTokenType, PaidTokenType, OfferingTokenType> {
-            staking_tokens,
+    public fun destory_offering<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(account: &signer) 
+    acquires Offering {
+        withdraw_offering_tokens<StakingTokenType, PaidTokenType, OfferingTokenType>(account);
+        let owner_address = Signer::address_of(account);
+        let offering = move_from<Offering<StakingTokenType, PaidTokenType, OfferingTokenType>>(owner_address);
+        let Offering<StakingTokenType, PaidTokenType, OfferingTokenType> {
+            offering_tokens,
+            exchange_rate: _,
+            personal_staking_token_amount_limit: _,
+            state: _,
+            offering_addr: _,
             staking_token_amount: _,
-            is_pay_off: _,
+            offering_token_exchanged_amount: _,
+            offering_token_total_amount: _,
             version: _,
-            token_staking_event,
-            token_exchange_event,
-        } = staking_token;
-        Token::destroy_zero(staking_tokens);
-        Event::destroy_handle(token_staking_event);
-        Event::destroy_handle(token_exchange_event);
+            offering_created_event,
+            offering_update_event,
+        } = offering;
+        Token::destroy_zero(offering_tokens);
+        Event::destroy_handle(offering_created_event);
+        Event::destroy_handle(offering_update_event);
     }
 
     // withdraw remain tokens when Offering closed
@@ -355,6 +349,19 @@ module Offering {
         emit_offering_update_event(pool);
     }
 
+    // emit offering_update_event
+    fun emit_offering_update_event<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>
+    (offering: &mut Offering<StakingTokenType, PaidTokenType, OfferingTokenType>) {
+        Event::emit_event(
+            &mut offering.offering_update_event,
+            OfferingUpdateEvent { 
+                version: offering.version,
+                state: offering.state,
+                staking_token_amount: offering.staking_token_amount,
+                offering_token_exchanged_amount: offering.offering_token_exchanged_amount,
+            },
+        );
+    }
 
     public fun personal_staking_token_amount<StakingTokenType: store, PaidTokenType: store, OfferingTokenType: store>(account_addr: address): u128 
     acquires Staking {
